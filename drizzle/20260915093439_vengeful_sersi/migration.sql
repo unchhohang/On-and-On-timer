@@ -1,0 +1,1 @@
+ALTER TABLE `daily_logs` RENAME COLUMN `seconds` TO `milliSeconds`;
