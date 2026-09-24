@@ -7,14 +7,15 @@ import TimerRing from "@components/Timerring";
 import WeeklyBarChart, { type DayEntry } from "@components/Weeklybarchart";
 import { formatDuration } from "./lib/calculator";
 import PencilIcon from "./components/PencilSvg";
-import { format, millisecondsToSeconds } from 'date-fns';
 import { createDailyLogs } from "./services/timer.service";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { db } from "./db";
 import { dailyLogs } from "./db/schema";
 import { goal } from "./db/schema";
 import { eq } from "drizzle-orm";
-
+import { format, secondsToHours, millisecondsToSeconds } from "date-fns";
+import { useAudioPlayer } from 'expo-audio';
+import { FontAwesome5 } from '@expo/vector-icons';
 
 // Placeholder week data — swap for real per-day totals once storage is wired up.
 const WEEK_DATA: DayEntry[] = [
@@ -51,13 +52,25 @@ export default function MainTimerScreen() {
 
   const todayData = todayDataList[0];
   const Goal = dataGoal[0];
-  const TARGET_SECONDS = Goal?.dailyTargetSeconds ?? 0;
+  // const TARGET_SECONDS = Goal?.dailyTargetSeconds ?? 0;
+  const TARGET_SECONDS = 40;
   const todaySpendTime = todayData?.milliSeconds ?? 0;      // in MilliSeconds
   const startTime = useRef<number>(0);
+  const player = useAudioPlayer(require('@assets/i-am-batman-x3.mp3'));
+  const alarmFiredRef = useRef(false);
 
   const [elapsedSeconds, setElapsedSeconds] = useState(0);      // in seconds
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [crown, setCrown] = useState(false);
+
+  // set crown true in case today goal reached
+  useEffect(() => {
+    console.log('todaySpendTime: ', todaySpendTime);
+    console.log('TARGET_SECONDS: ', TARGET_SECONDS);
+
+    if (millisecondsToSeconds(todaySpendTime) >= TARGET_SECONDS) setCrown(true);
+  }, []);
 
   // setting elapsedSeconds
   useEffect(() => {
@@ -71,9 +84,18 @@ export default function MainTimerScreen() {
         const et = todaySpendTime + Date.now() - startTime.current;
         setElapsedSeconds(millisecondsToSeconds(et));
 
+        console.log('et' + et + ',' + 'TARGET_SECONDS' + TARGET_SECONDS * 1000);
+        console.log(et == TARGET_SECONDS * 1000);
+
+
         // play timer when targetMillSecond == elapsedMiliSec
-        if(et == goal?.dailyTargetSeconds)
-         
+        if (et >= TARGET_SECONDS * 1000 && !alarmFiredRef.current) {
+          alarmFiredRef.current = true;
+          playAlarm();
+          setCrown(true)
+          toggleRunning();
+        }
+
       },
         1000
       );
@@ -108,7 +130,16 @@ export default function MainTimerScreen() {
     }
   };
 
-  const playAlarm = () => { }
+
+  const playAlarm = () => {
+    console.log('alarm should play');
+
+    player.seekTo(0)
+    player.play();
+
+    player.seekTo(0)
+    player.play();
+  };
 
   return (
     <SafeAreaView className="flex-1 bg-[#14151a] px-6" edges={["top", "bottom"]}>
@@ -116,7 +147,7 @@ export default function MainTimerScreen() {
         <Text className="text-[13px] text-[#8a8d99]">Today's goal</Text>
         <View className="flex-row items-center gap-2 mt-1">
           <Text className="text-[18px] font-semibold text-[#f2c744]">
-            {Goal?.activityName} · 8h target
+            {Goal?.activityName} · {secondsToHours(Goal?.dailyTargetSeconds)}h target
           </Text>
           <Pressable
             onPress={() => router.replace("Goal")}
@@ -137,14 +168,23 @@ export default function MainTimerScreen() {
       </View>
 
       <View className="flex-row justify-center gap-3 mb-8">
-        <Pressable
-          onPress={toggleRunning}
-          className="h-14 px-8 rounded-xl bg-[#f2c744] items-center justify-center"
-        >
-          <Text className="text-[16px] font-semibold text-[#14151a]">
-            {isRunning ? "Pause" : "Start"}
-          </Text>
-        </Pressable>
+        {
+          crown ?
+            <View>
+              <FontAwesome5 name="crown" size={48} color="#FFD700" />
+            </View>
+            :
+            <Pressable
+              onPress={toggleRunning}
+              className="h-14 px-8 rounded-xl bg-[#f2c744] items-center justify-center"
+            >
+              <Text className="text-[16px] font-semibold text-[#14151a]">
+                {isRunning ? "Pause" : "Start"}
+              </Text>
+            </Pressable>
+        }
+
+
       </View>
 
       {/* <View className="border-t border-[#2a2c33] pt-4"> */}

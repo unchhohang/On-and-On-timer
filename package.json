@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@expo/ui": "~57.0.18",
+    "@expo/vector-icons": "^15.1.1",
     "@libsql/client": "^0.18.0",
     "@react-navigation/elements": "^2.9.40",
     "@react-navigation/native": "^7.3.18",
@@ -12,6 +13,7 @@
     "dotenv": "^17.4.2",
     "drizzle-orm": "1.0.0-rc.4",
     "expo": "~57.0.22",
+    "expo-audio": "~57.0.5",
     "expo-constants": "~57.0.18",
     "expo-device": "~57.0.2",
     "expo-drizzle-studio-plugin": "0.2.1",
