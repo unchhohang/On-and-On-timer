@@ -12,6 +12,8 @@ import "@/global.css";
 import Toast from "react-native-toast-message";
 import { useLiveQuery } from "drizzle-orm/expo-sqlite";
 import { goal } from "./db/schema";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
 
 const options: NativeStackNavigationOptions = {
   headerShown: false,
@@ -21,6 +23,7 @@ const options: NativeStackNavigationOptions = {
 
 export default function RootLayout() {
   useDrizzleStudio(expoDb)
+  const queryClient = new QueryClient();
   const { data } = useLiveQuery(db.select().from(goal));
 
   const [isMigrated, setIsMigrated] = useState(false);
@@ -49,11 +52,13 @@ export default function RootLayout() {
 
   return (
     <>
-      <Stack initialRouteName={data[0] ? 'MainTimer' : 'Goal'}>
-        <Stack.Screen name="Goal" options={options} />
-        <Stack.Screen name="MainTimer" options={options} />
-      </Stack>
-      <Toast />
+      <QueryClientProvider client={queryClient}>
+        <Stack initialRouteName={data[0] ? 'MainTimer' : 'Goal'}>
+          <Stack.Screen name="Goal" options={options} />
+          <Stack.Screen name="MainTimer" options={options} />
+        </Stack>
+        <Toast />
+      </QueryClientProvider>
     </>
   );
 }

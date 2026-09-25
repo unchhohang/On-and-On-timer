@@ -16,17 +16,36 @@ import { eq } from "drizzle-orm";
 import { format, secondsToHours, millisecondsToSeconds } from "date-fns";
 import { useAudioPlayer } from 'expo-audio';
 import { FontAwesome5 } from '@expo/vector-icons';
+import { getWeekRange } from "@/src/app/lib/datetime";
+import { getDailyLogByDate, getEachDayTimeSpent } from "@/src/app/services/dailylogs.service";
+import { useQuery } from "@tanstack/react-query";
 
 // Placeholder week data — swap for real per-day totals once storage is wired up.
-const WEEK_DATA: DayEntry[] = [
-  { label: "Mon", value: 4.5 * 3600 },
+const WEEK_DATA_DUMMY: DayEntry[] = [
+  { label: "Sun", value: 2.4 * 3600, highlighted: true },
+  { label: "Mon", value: 3 * 3600 },
   { label: "Tue", value: 6.2 * 3600 },
   { label: "Wed", value: 7.1 * 3600, highlighted: true },
   { label: "Thu", value: 2.6 * 3600 },
   { label: "Fri", value: 5.3 * 3600 },
   { label: "Sat", value: 4.0 * 3600 },
-  { label: "Sun", value: 2.4 * 3600, highlighted: true },
 ];
+
+type timesSpent = {
+  [x: string]: number;
+}[]
+
+const makeDayEntry = (timesSpent: timesSpent, targetDuration: number) => {
+  return timesSpent.map((d) => {
+    const [key, value] = Object.entries(d)[0];
+    return {
+      label: key,
+      value: value,
+      Highlight: value >= targetDuration * 1000
+    }
+  }
+  )
+}
 
 
 export default function MainTimerScreen() {
@@ -41,6 +60,11 @@ export default function MainTimerScreen() {
       .from(dailyLogs)
   );
 
+  const { data: weekData, isLoading: isLoadingWeekData } = useQuery({
+    queryKey: ["weekData"],
+    queryFn: getEachDayTimeSpent,
+  });
+
   const todayDateStr = useMemo(() => format(new Date(), 'yyyy-MM-dd'), []);
   const { data: todayDataList } = useLiveQuery(
     db.select()
@@ -52,8 +76,7 @@ export default function MainTimerScreen() {
 
   const todayData = todayDataList[0];
   const Goal = dataGoal[0];
-  // const TARGET_SECONDS = Goal?.dailyTargetSeconds ?? 0;
-  const TARGET_SECONDS = 40;
+  const TARGET_SECONDS = Goal?.dailyTargetSeconds ?? 0;
   const todaySpendTime = todayData?.milliSeconds ?? 0;      // in MilliSeconds
   const startTime = useRef<number>(0);
   const player = useAudioPlayer(require('@assets/i-am-batman-x3.mp3'));
@@ -63,14 +86,28 @@ export default function MainTimerScreen() {
   const [isRunning, setIsRunning] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [crown, setCrown] = useState(false);
+  const [weekChart, setWeekChart] = useState(WEEK_DATA_DUMMY);
+
+  console.log('week chart');
+  console.log(weekData);
+  
+  
+
+
+  useEffect(() => {
+    const data = makeDayEntry(weekData ?? [], millisecondsToSeconds(TARGET_SECONDS));
+    setWeekChart(data);
+  }, [isLoadingWeekData]);
+
+
 
   // set crown true in case today goal reached
   useEffect(() => {
-    console.log('todaySpendTime: ', todaySpendTime);
-    console.log('TARGET_SECONDS: ', TARGET_SECONDS);
 
+    console.log('todaySpendTime: ', millisecondsToSeconds(todaySpendTime), 'Target Sec: ', TARGET_SECONDS);
+    if (!Goal || !todayData) return;
     if (millisecondsToSeconds(todaySpendTime) >= TARGET_SECONDS) setCrown(true);
-  }, []);
+  }, [todaySpendTime, TARGET_SECONDS, Goal, todayData]);
 
   // setting elapsedSeconds
   useEffect(() => {
@@ -187,10 +224,10 @@ export default function MainTimerScreen() {
 
       </View>
 
-      {/* <View className="border-t border-[#2a2c33] pt-4"> */}
-      {/*   <Text className="text-[13px] text-[#8a8d99] mb-3">Last 7 days</Text> */}
-      {/*   <WeeklyBarChart data={WEEK_DATA} /> */}
-      {/* </View> */}
+      <View className="border-t border-[#2a2c33] pt-4">
+        <Text className="text-[13px] text-[#8a8d99] mb-3">Last 7 days</Text>
+        <WeeklyBarChart data={weekChart} />
+      </View>
     </SafeAreaView>
   );
 }
